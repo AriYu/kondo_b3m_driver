@@ -17,3 +17,8 @@ add_executable(reset
   ./src/reset.cpp
 ) 
 target_link_libraries(reset)
+
+add_executable(read 
+  ./src/read.cpp
+) 
+target_link_libraries(read)

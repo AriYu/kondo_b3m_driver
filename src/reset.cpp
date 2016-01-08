@@ -19,9 +19,9 @@ int reset (int fd,  unsigned char id)
 
   data[0]  = (unsigned char)sizeof(data); // SIZE
   data[1]  = (unsigned char)0x05;  // コマンド
-  data[2]  = (unsigned char)0b01000000; // OPTION : CLEAR
+  data[2]  = (unsigned char)0b00000000; // OPTION : CLEAR
   data[3]  = (unsigned char)id; //id
-  data[4]  = (unsigned char)0x03; // TIME
+  data[4]  = (unsigned char)0x00; // TIME
 
   // チェックサム
   for(int i = 0; i < 5; ++i ){
@@ -65,7 +65,7 @@ int main(void)
 	}
 	ioctl(servo_fd, TCSETS, &newtio);
 
-	reset(servo_fd,  0);
+	reset(servo_fd,  0xff);
 
 	return 0;
 }
