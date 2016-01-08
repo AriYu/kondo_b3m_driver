@@ -12,3 +12,8 @@ add_executable(sample
   ./src/sample.cpp
 ) 
 target_link_libraries(sample)
+
+add_executable(reset 
+  ./src/reset.cpp
+) 
+target_link_libraries(reset)

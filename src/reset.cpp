@@ -12,29 +12,30 @@
 // unsigned char : 1 Byte
 // short : 2 Byte
 
-// とりあえず1個だけ動かしてみよう
-int send_to_b3m (int fd,  unsigned char id , short pos, unsigned char option)
+int reset (int fd,  unsigned char id)
 {
-  unsigned char data[9];
+  unsigned char data[6];
   short sum = 0;
 
   data[0]  = (unsigned char)sizeof(data); // SIZE
-  data[1]  = (unsigned char)0x06;  // コマンド
-  data[2]  = (unsigned char)0; // OPTION
+  data[1]  = (unsigned char)0x05;  // コマンド
+  data[2]  = (unsigned char)0b01000000; // OPTION : CLEAR
   data[3]  = (unsigned char)id; //id
-  data[4]  = (unsigned char)(pos&0x00FF); // POS_L
-  data[5]  = (unsigned char)((pos&0xFF00)>>8); // POS_H
-  data[6]  = (unsigned char)0x00; // TIME_L
-  data[7]  = (unsigned char)0x00; // TIME_H
+  data[4]  = (unsigned char)0x03; // TIME
 
   // チェックサム
-  for(int i = 0; i < 8; ++i ){
+  for(int i = 0; i < 5; ++i ){
 	  sum += data[i];
   }
-  data[8] = (unsigned char)(sum&0x00FF); // SIZE~TIMEまでの総和の下位1Byte
+  data[5] = (unsigned char)(sum&0x00FF); // SIZE~TIMEまでの総和の下位1Byte
+
+  for(int i = 0; i < 6; ++i)
+	{
+	  printf("data[%d]:%x\n",i, data[i]);
+	}
 
   // 送信
-  return write(fd, data, 8);
+  return write(fd, data, 6);
 }
 
 int main(void)
@@ -64,7 +65,7 @@ int main(void)
 	}
 	ioctl(servo_fd, TCSETS, &newtio);
 
-	send_to_b3m (servo_fd,  0, 10000, 0);
+	reset(servo_fd,  0);
 
 	return 0;
 }
