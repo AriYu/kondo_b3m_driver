@@ -5,7 +5,9 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <fcntl.h>
-
+#include <stdlib.h>
+#include <stdio.h>
+#include <strings.h>
 #include <iostream>
 #include <cmath>
 
@@ -20,6 +22,7 @@
 
 #define EQUAL_DIVISION 0x01
 
+#define BAUDRATE B115200           /* 通信速度の設定 */
 // unsigned char : 1 Byte
 // short : 2 Byte
 
@@ -49,9 +52,18 @@ int set_servo_position (int fd,  unsigned char id , short pos, short target_time
 	  printf("data[%d]:%x\n",i, data[i]);
 	}
 
-
   // 送信
-  return write(fd, data, 9);
+  write(fd, data, sizeof(data));
+
+  printf("返信データ\n");
+  unsigned char reply[7];
+  int res = 0;
+  res = read(fd, reply, sizeof(reply));
+  for(int i = 0; i < sizeof(reply); ++i)
+	{
+	  printf("reply[%d]:%x\n",i, reply[i]);
+	}
+return 0;
 }
 
 int set_trajectry_mode (int fd,  unsigned char id , unsigned char trajectry_mode, unsigned char option)
@@ -80,8 +92,18 @@ int set_trajectry_mode (int fd,  unsigned char id , unsigned char trajectry_mode
 
 
   // 送信
-  return write(fd, data, 8);
+  write(fd, data, sizeof(data));
+
+  printf("返信データ\n");
+  unsigned char reply[5];
+  int res = 0;
+  res = read(fd, reply, sizeof(reply));
+  for(int i = 0; i < sizeof(reply); ++i)
+	{
+	  printf("reply[%d]:%x\n",i, reply[i]);
+	}
   
+  return 0;
 }
 
 
@@ -111,8 +133,18 @@ int change_servo_status(int fd,  unsigned char id , unsigned char status, unsign
 
 
   // 送信
-  return write(fd, data, 8);
-  
+  write(fd, data, sizeof(data));
+
+  printf("返信データ\n");
+  unsigned char reply[5];
+  int res = 0;
+  res = read(fd, reply, sizeof(reply));
+  for(int i = 0; i < sizeof(reply); ++i)
+	{
+	  printf("reply[%d]:%x\n",i, reply[i]);
+	}
+
+  return 0;
 }
 
 int change_ctrl_mode(int fd,  unsigned char id , unsigned char ctrl_mode, unsigned char option)
@@ -141,8 +173,17 @@ int change_ctrl_mode(int fd,  unsigned char id , unsigned char ctrl_mode, unsign
 
 
   // 送信
-  return write(fd, data, 8);
-
+  write(fd, data, sizeof(data));
+  
+  printf("返信データ\n");
+  unsigned char reply[5];
+  int res = 0;
+  res = read(fd, reply, sizeof(reply));
+  for(int i = 0; i < sizeof(reply); ++i)
+	{
+	  printf("reply[%d]:%x\n",i, reply[i]);
+	}
+  return 0;
 }
 
 int set_servo_gain(int fd,  unsigned char id , unsigned char gain_param, unsigned char option)
@@ -171,7 +212,18 @@ int set_servo_gain(int fd,  unsigned char id , unsigned char gain_param, unsigne
 
 
   // 送信
-  return write(fd, data, 8);
+  write(fd, data, sizeof(data));
+
+  printf("返信データ\n");
+  unsigned char reply[5];
+  int res = 0;
+  res = read(fd, reply, sizeof(reply));
+  for(int i = 0; i < sizeof(reply); ++i)
+	{
+	  printf("reply[%d]:%x\n",i, reply[i]);
+	}
+  return 0;
+
 }
 
 
@@ -184,31 +236,27 @@ int main(void)
 	{
 		std::cout << "Error : fail to open" << std::endl;
 	}
-	ioctl(servo_fd, TCGETS, &oldtio);
-	newtio = oldtio;
-	
+
+	tcgetattr(servo_fd, &oldtio);         /* 現在のシリアルポートの設定を退避させる */
+	bzero(&newtio, sizeof(newtio));  /* 新しいポートの設定の構造体をクリア */
+
 	newtio.c_cc[VMIN] = 1;
 	newtio.c_cc[VTIME] = 0;
-	
-	newtio.c_cflag = CS8 | CREAD | CLOCAL;
+	newtio.c_cflag = BAUDRATE | CS8 | CREAD | CLOCAL;
+	newtio.c_iflag = IGNPAR;
+	newtio.c_oflag = 0; // rawモード
+	newtio.c_lflag = 0; // 非カノニカル入力
 
-	newtio.c_iflag = IGNBRK | IGNPAR;
-	int ret = cfsetspeed(&newtio, B115200);
-	if(ret < 0)
-	{
-		std::cout << "Error in cfsetspeed" << std::endl;
-		close(servo_fd);
-		return 1;
-	}
-	ioctl(servo_fd, TCSETS, &newtio);
-
+	tcflush(servo_fd,TCIFLUSH);           /* ポートのクリア */
+	tcsetattr(servo_fd, TCSANOW, &newtio); /* ポートの設定を有効にする */
 
 	// 1. サーボの状態をFreeモードにする
 	printf("サーボの状態をFreeモードにする\n");
 	change_servo_status(servo_fd,  0, FREE_MODE, 0);
 	// 2. 制御モードを変更する
-	printf("制御モードを変更する\n");
+	printf("制御モードを位置制御モードに変更する\n");
 	change_servo_status(servo_fd,  0, FREE_MODE | POSITION_CTRL_MODE, 0);
+	printf("軌道生成タイプをEvenに設定\n");
 	set_trajectry_mode(servo_fd,  0, EQUAL_DIVISION, 0);
 	// 3. ゲインを設定する
 	printf("ゲインを設定する\n");
@@ -218,10 +266,14 @@ int main(void)
 	change_servo_status(servo_fd, 0, NORMAL_MODE, 0);
 	// 5. 目標値を設定する
 	printf("目標値を設定する\n");
-	set_servo_position (servo_fd, 0, 50*100, 3*1000, 0);	
+	set_servo_position (servo_fd, 0, 100*100, 1*1000, 0);
+
+	sleep(3);
+
 	// 6. Freeモードに戻す
 	printf("サーボの状態をFreeモードにする\n");
 	change_servo_status(servo_fd,  0, FREE_MODE, 0);
 
+	tcsetattr(servo_fd, TCSANOW, &oldtio);
 	return 0;
 }

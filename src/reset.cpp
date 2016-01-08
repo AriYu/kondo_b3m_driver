@@ -65,7 +65,7 @@ int main(void)
 	}
 	ioctl(servo_fd, TCSETS, &newtio);
 
-	reset(servo_fd,  0xff);
+	reset(servo_fd,  0);
 
 	return 0;
 }

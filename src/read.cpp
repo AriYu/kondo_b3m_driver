@@ -1,5 +1,8 @@
 #include <termios.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <strings.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -9,6 +12,8 @@
 #include <iostream>
 #include <cmath>
 
+
+#define BAUDRATE B115200           /* 通信速度の設定 */
 // unsigned char : 1 Byte
 // short : 2 Byte
 
@@ -36,19 +41,21 @@ int read_from_b3m (int fd,  unsigned char id)
 	}
 
   // 送信
-  int ret = write(fd, data, 7);
+  int ret = write(fd, data, sizeof(data));
   printf("write ret : %d\n", ret);
   printf("返信データ\n");
   unsigned char reply[9];
 
-  int res = read(fd, reply, 9);
+  int res = 0;
+  while(res != 9){
+	printf("res : %d\n", res);
+	res = read(fd, reply, 9);
+  }
+  
   for(int i = 0; i < 9; ++i)
 	{
-	  printf("data[%d]:%x\n",i, reply[i]);
+	  printf("reply[%d]:%x\n",i, reply[i]);
 	}
-
-  
-
 }
 
 int main(void)
@@ -60,25 +67,34 @@ int main(void)
 	{
 		std::cout << "Error : fail to open" << std::endl;
 	}
-	ioctl(servo_fd, TCGETS, &oldtio);
-	newtio = oldtio;
+
+	tcgetattr(servo_fd, &oldtio);         /* 現在のシリアルポートの設定を退避させる */
+	bzero(&newtio, sizeof(newtio));  /* 新しいポートの設定の構造体をクリア */
+
+	// ioctl(servo_fd, TCGETS, &oldtio);
+	// newtio = oldtio;
 	
 	newtio.c_cc[VMIN] = 1;
-	newtio.c_cc[VTIME] = 5;
-	
-	newtio.c_cflag = CS8 | CREAD | CLOCAL;
+	newtio.c_cc[VTIME] = 0;
+	newtio.c_cflag = BAUDRATE | CS8 | CREAD | CLOCAL;
+	newtio.c_iflag = IGNPAR;
+	newtio.c_oflag = 0; // rawモード
+	newtio.c_lflag = 0; // 非カノニカル入力
 
-	newtio.c_iflag = IGNBRK | IGNPAR;
-	int ret = cfsetspeed(&newtio, B115200);
-	if(ret < 0)
-	{
-		std::cout << "Error in cfsetspeed" << std::endl;
-		close(servo_fd);
-		return 1;
-	}
-	ioctl(servo_fd, TCSETS, &newtio);
+	// int ret = cfsetspeed(&newtio, B115200);
+	// if(ret < 0)
+	// {
+	// 	std::cout << "Error in cfsetspeed" << std::endl;
+	// 	close(servo_fd);
+	// 	return 1;
+	// }
+	// ioctl(servo_fd, TCSETS, &newtio);
+tcflush(servo_fd,TCIFLUSH);           /* ポートのクリア */
+tcsetattr(servo_fd, TCSANOW, &newtio); /* ポートの設定を有効にする */
+	
 
 	read_from_b3m(servo_fd,  0);
 
+	tcsetattr(servo_fd, TCSANOW, &oldtio);
 	return 0;
 }
